@@ -44,13 +44,13 @@ type (
 	}
 
 	skipListNode struct {
-		objID    int64            // 成员id
+		objID    string            // 成员id
 		score    float64          // 分值
 		backward *skipListNode    // 后退指针
 		level    []*skipListLevel // 层
 	}
 	obj struct {
-		key        int64       // 成员id
+		key        string       // 成员id
 		attachment interface{} // 自定义数据
 		score      float64     // 分值
 	}
@@ -63,7 +63,7 @@ type (
 	}
 	// SortedSet is the final exported sorted set we can use
 	SortedSet struct {
-		dict map[int64]*obj
+		dict map[string]*obj
 		zsl  *skipList
 	}
 	zrangespec struct {
@@ -74,8 +74,8 @@ type (
 	}
 	/* Struct to hold an inclusive/exclusive range spec by lexicographic comparison. */
 	zlexrangespec struct {
-		minKey int64
-		maxKey int64
+		minKey string
+		maxKey string
 		minex  int /* are min or max exclusive? */
 		maxex  int /* are min or max exclusive? */
 	}
@@ -83,7 +83,7 @@ type (
 
 /* Create a skiplist node with the specified number of levels.
  * The SDS string 'obj' is referenced by the node after the call. */
-func zslCreateNode(level int16, score float64, id int64) *skipListNode {
+func zslCreateNode(level int16, score float64, id string) *skipListNode {
 	n := &skipListNode{
 		score: score,
 		objID: id,
@@ -99,7 +99,7 @@ func zslCreateNode(level int16, score float64, id int64) *skipListNode {
 func zslCreate() *skipList {
 	return &skipList{
 		level:  1,
-		header: zslCreateNode(_ZSKIPLIST_MAXLEVEL, 0, 0),
+		header: zslCreateNode(_ZSKIPLIST_MAXLEVEL, 0, ""),
 	}
 }
 
@@ -123,7 +123,7 @@ func randomLevel() int16 {
 /* zslInsert a new node in the skiplist. Assumes the element does not already
  * exist (up to the caller to enforce that). The skiplist takes ownership
  * of the passed SDS string 'obj'. */
-func (zsl *skipList) zslInsert(score float64, id int64) *skipListNode {
+func (zsl *skipList) zslInsert(score float64, id string) *skipListNode {
 	update := make([]*skipListNode, _ZSKIPLIST_MAXLEVEL)
 	rank := make([]uint64, _ZSKIPLIST_MAXLEVEL)
 	x := zsl.header
@@ -216,7 +216,7 @@ func (zsl *skipList) zslDeleteNode(x *skipListNode, update []*skipListNode) {
  * it is not freed (but just unlinked) and *node is set to the node pointer,
  * so that it is possible for the caller to reuse the node (including the
  * referenced SDS string at node->obj). */
-func (zsl *skipList) zslDelete(score float64, id int64) int {
+func (zsl *skipList) zslDelete(score float64, id string) int {
 	update := make([]*skipListNode, _ZSKIPLIST_MAXLEVEL)
 	x := zsl.header
 	for i := zsl.level - 1; i >= 0; i-- {
@@ -327,7 +327,7 @@ func (zsl *skipList) zslLastInRange(ran *zrangespec) *skipListNode {
  * Min and max are inclusive, so a score >= min || score <= max is deleted.
  * Note that this function takes the reference to the hash table view of the
  * sorted set, in order to remove the elements from the hash table too. */
-func (zsl *skipList) zslDeleteRangeByScore(ran *zrangespec, dict map[int64]*obj) uint64 {
+func (zsl *skipList) zslDeleteRangeByScore(ran *zrangespec, dict map[string]*obj) uint64 {
 	removed := uint64(0)
 	update := make([]*skipListNode, _ZSKIPLIST_MAXLEVEL)
 	x := zsl.header
@@ -373,7 +373,7 @@ func (zsl *skipList) zslDeleteRangeByScore(ran *zrangespec, dict map[int64]*obj)
 	return removed
 }
 
-func (zsl *skipList) zslDeleteRangeByLex(ran *zlexrangespec, dict map[int64]*obj) uint64 {
+func (zsl *skipList) zslDeleteRangeByLex(ran *zlexrangespec, dict map[string]*obj) uint64 {
 	removed := uint64(0)
 
 	update := make([]*skipListNode, _ZSKIPLIST_MAXLEVEL)
@@ -399,14 +399,14 @@ func (zsl *skipList) zslDeleteRangeByLex(ran *zlexrangespec, dict map[int64]*obj
 	return removed
 }
 
-func zslLexValueGteMin(id int64, spec *zlexrangespec) bool {
+func zslLexValueGteMin(id string, spec *zlexrangespec) bool {
 	if spec.minex != 0 {
 		return compareKey(id, spec.minKey) > 0
 	}
 	return compareKey(id, spec.minKey) >= 0
 }
 
-func compareKey(a, b int64) int8 {
+func compareKey(a, b string) int8 {
 	if a == b {
 		return 0
 	} else if a > b {
@@ -415,7 +415,7 @@ func compareKey(a, b int64) int8 {
 	return -1
 }
 
-func zslLexValueLteMax(id int64, spec *zlexrangespec) bool {
+func zslLexValueLteMax(id string, spec *zlexrangespec) bool {
 	if spec.maxex != 0 {
 		return compareKey(id, spec.maxKey) < 0
 	}
@@ -424,7 +424,7 @@ func zslLexValueLteMax(id int64, spec *zlexrangespec) bool {
 
 /* Delete all the elements with rank between start and end from the skiplist.
  * Start and end are inclusive. Note that start and end need to be 1-based */
-func (zsl *skipList) zslDeleteRangeByRank(start, end uint64, dict map[int64]*obj) uint64 {
+func (zsl *skipList) zslDeleteRangeByRank(start, end uint64, dict map[string]*obj) uint64 {
 	update := make([]*skipListNode, _ZSKIPLIST_MAXLEVEL)
 	var traversed, removed uint64
 
@@ -454,7 +454,7 @@ func (zsl *skipList) zslDeleteRangeByRank(start, end uint64, dict map[int64]*obj
  * Returns 0 when the element cannot be found, rank otherwise.
  * Note that the rank is 1-based due to the span of zsl->header to the
  * first element. */
-func (zsl *skipList) zslGetRank(score float64, key int64) int64 {
+func (zsl *skipList) zslGetRank(score float64, key string) int64 {
 	rank := uint64(0)
 	x := zsl.header
 	for i := zsl.level - 1; i >= 0; i-- {
@@ -497,7 +497,7 @@ func (zsl *skipList) zslGetElementByRank(rank uint64) *skipListNode {
 // New creates a new SortedSet and return its pointer
 func New() *SortedSet {
 	s := &SortedSet{
-		dict: make(map[int64]*obj),
+		dict: make(map[string]*obj),
 		zsl:  zslCreate(),
 	}
 	return s
@@ -509,7 +509,7 @@ func (z *SortedSet) Length() int64 {
 }
 
 // Set is used to add or update an element
-func (z *SortedSet) Set(score float64, key int64, dat interface{}) {
+func (z *SortedSet) Set(score float64, key string, dat interface{}) {
 	v, ok := z.dict[key]
 	z.dict[key] = &obj{attachment: dat, key: key, score: score}
 	if ok {
@@ -525,7 +525,7 @@ func (z *SortedSet) Set(score float64, key int64, dat interface{}) {
 
 // Delete removes an element from the SortedSet
 // by its key.
-func (z *SortedSet) Delete(key int64)(ok bool) {
+func (z *SortedSet) Delete(key string)(ok bool) {
 	v, ok := z.dict[key]
 	if ok {
 		z.zsl.zslDelete(v.score, key)
@@ -539,7 +539,7 @@ func (z *SortedSet) Delete(key int64)(ok bool) {
 // found by the parameter key.
 // The parameter reverse determines the rank is descent or ascend，
 // true means descend and false means ascend.
-func (z *SortedSet) GetRank(key int64, reverse bool) (rank int64, score float64,data interface{}) {
+func (z *SortedSet) GetRank(key string, reverse bool) (rank int64, score float64,data interface{}) {
 	v, ok := z.dict[key]
 	if !ok {
 		return -1, 0, nil
@@ -551,11 +551,10 @@ func (z *SortedSet) GetRank(key int64, reverse bool) (rank int64, score float64,
 		r--
 	}
 	return int64(r), v.score, v.attachment
-
 }
 
 // GetData returns data stored in the map by its key
-func (z *SortedSet) GetData(key int64) (data interface{},ok bool) {
+func (z *SortedSet) GetData(key string) (data interface{},ok bool) {
 	o, ok := z.dict[key]
 	if !ok {
 		return nil, false
@@ -566,9 +565,9 @@ func (z *SortedSet) GetData(key int64) (data interface{},ok bool) {
 // GetDataByRank returns the id,score and extra data of an element which
 // found by position in the rank.
 // The parameter rank is the position, reverse says if in the descend rank.
-func (z *SortedSet) GetDataByRank(rank int64, reverse bool) (key int64,score float64,data interface{}) {
+func (z *SortedSet) GetDataByRank(rank int64, reverse bool) (key string,score float64,data interface{}) {
 	if rank < 0 || rank > z.zsl.length {
-		return 0, 0, nil
+		return "", 0, nil
 	}
 	if reverse {
 		rank = z.zsl.length - rank
@@ -577,11 +576,11 @@ func (z *SortedSet) GetDataByRank(rank int64, reverse bool) (key int64,score flo
 	}
 	n := z.zsl.zslGetElementByRank(uint64(rank))
 	if n == nil {
-		return 0, 0, nil
+		return "", 0, nil
 	}
 	dat, _ := z.dict[n.objID]
 	if dat == nil {
-		return 0, 0, nil
+		return "", 0, nil
 	}
 	return dat.key, dat.score, dat.attachment
 }
