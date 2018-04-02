@@ -1,45 +1,31 @@
-[![Go Report Card](https://goreportcard.com/badge/github.com/XanthusL/zset)](https://goreportcard.com/report/github.com/XanthusL/zset)
+[![Go Report Card](https://goreportcard.com/badge/github.com/solos/zset)](https://goreportcard.com/report/github.com/solos/zset)
 # zset
 Implementing sorted set in Redis with golang.
 
 ## Installation
 ```bash
-go get -u github.com/XanthusL/zset
+go get -u github.com/solos/zset
 ```
 
 ## Usage
 Removed RWLock in the SortedSet. 
 Just implement it yourself if needed.
 ```go
+
 s := zset.New()
 // add data
-s.Set(66, 1001, "test1")
-s.Set(77, 1002, "test2")
-s.Set(88, 1003, "test3")
-s.Set(100, 1004, "liyiheng")
-s.Set(99, 1005, "test4")
-s.Set(44, 1006, "test5")
-// update data
-s.Set(44, 1001, "test1")
+s.Set(0.99, "600600", nil)
+s.Set(-0.52, "600519", nil)
+s.Set(-2.13, "601398", nil)
 
-// get rank by id
-rank, score, extra := s.GetRank(1004, false)
-// get data by rank
-id, score, extra := s.GetDataByRank(0, true)
-// get data by id
-dat, ok := s.GetData(1001)
+stocks := []string{"600600", "600519", "601398"}
 
-// delete data by id
-s.Delete(1001)
-```
+for index := range stocks {
+    stock_code := stocks[index]
+    rank, score, _ := s.GetRank(stock_code, false)
+    fmt.Println(rank)
+    fmt.Println(score)
+}
 
-## Benchmark
 
-```bash
-go test -test.bench=".*"
-BenchmarkSortedSet_Add-4                 1000000              4121 ns/op
-BenchmarkSortedSet_GetRank-4              500000              3592 ns/op
-BenchmarkSortedSet_GetDataByRank-4       2000000               667 ns/op
-PASS
-ok      zset    11.365s
 ```
