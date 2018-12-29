@@ -44,15 +44,15 @@ type (
 	}
 
 	skipListNode struct {
-		objID    string            // 成员id
+		objID    string           // 成员id
 		score    float64          // 分值
 		backward *skipListNode    // 后退指针
 		level    []*skipListLevel // 层
 	}
 	obj struct {
-		key        string       // 成员id
-		attachment interface{} // 自定义数据
-		score      float64     // 分值
+		Key        string      // 成员id
+		Attachment interface{} // 自定义数据
+		Score      float64     // 分值
 	}
 
 	skipList struct {
@@ -490,6 +490,26 @@ func (zsl *skipList) zslGetElementByRank(rank uint64) *skipListNode {
 	return nil
 }
 
+func (zsl *skipList) zslGetElements(begin uint64, end uint64) []*skipListNode {
+	result := []*skipListNode{}
+	x := zsl.zslGetElementByRank(begin)
+	if x == nil {
+		return result
+	}
+	rank := begin
+	for x.level[0].forward != nil {
+		if rank <= end {
+			rank += 1
+			x = x.level[0].forward
+			result = append(result, x)
+			continue
+		} else {
+			break
+		}
+	}
+	return result
+}
+
 /*-----------------------------------------------------------------------------
  * Common sorted set API
  *----------------------------------------------------------------------------*/
@@ -508,14 +528,25 @@ func (z *SortedSet) Length() int64 {
 	return z.zsl.length
 }
 
+func (z *SortedSet) GetRange(begin uint64, end uint64) []*obj {
+	elements := z.zsl.zslGetElements(begin, end)
+	nodes := []*obj{}
+	for i := range elements {
+		el := elements[i]
+		node := &obj{Key: el.objID, Score: el.score}
+		nodes = append(nodes, node)
+	}
+	return nodes
+}
+
 // Set is used to add or update an element
 func (z *SortedSet) Set(score float64, key string, dat interface{}) {
 	v, ok := z.dict[key]
-	z.dict[key] = &obj{attachment: dat, key: key, score: score}
+	z.dict[key] = &obj{Attachment: dat, Key: key, Score: score}
 	if ok {
 		/* Remove and re-insert when score changes. */
-		if score != v.score {
-			z.zsl.zslDelete(v.score, key)
+		if score != v.Score {
+			z.zsl.zslDelete(v.Score, key)
 			z.zsl.zslInsert(score, key)
 		}
 	} else {
@@ -525,10 +556,10 @@ func (z *SortedSet) Set(score float64, key string, dat interface{}) {
 
 // Delete removes an element from the SortedSet
 // by its key.
-func (z *SortedSet) Delete(key string)(ok bool) {
+func (z *SortedSet) Delete(key string) (ok bool) {
 	v, ok := z.dict[key]
 	if ok {
-		z.zsl.zslDelete(v.score, key)
+		z.zsl.zslDelete(v.Score, key)
 		delete(z.dict, key)
 		return true
 	}
@@ -539,33 +570,33 @@ func (z *SortedSet) Delete(key string)(ok bool) {
 // found by the parameter key.
 // The parameter reverse determines the rank is descent or ascend，
 // true means descend and false means ascend.
-func (z *SortedSet) GetRank(key string, reverse bool) (rank int64, score float64,data interface{}) {
+func (z *SortedSet) GetRank(key string, reverse bool) (rank int64, score float64, data interface{}) {
 	v, ok := z.dict[key]
 	if !ok {
 		return -1, 0, nil
 	}
-	r := z.zsl.zslGetRank(v.score, key)
+	r := z.zsl.zslGetRank(v.Score, key)
 	if reverse {
 		r = z.zsl.length - r
 	} else {
 		r--
 	}
-	return int64(r), v.score, v.attachment
+	return int64(r), v.Score, v.Attachment
 }
 
 // GetData returns data stored in the map by its key
-func (z *SortedSet) GetData(key string) (data interface{},ok bool) {
+func (z *SortedSet) GetData(key string) (data interface{}, ok bool) {
 	o, ok := z.dict[key]
 	if !ok {
 		return nil, false
 	}
-	return o.attachment, true
+	return o.Attachment, true
 }
 
 // GetDataByRank returns the id,score and extra data of an element which
 // found by position in the rank.
 // The parameter rank is the position, reverse says if in the descend rank.
-func (z *SortedSet) GetDataByRank(rank int64, reverse bool) (key string,score float64,data interface{}) {
+func (z *SortedSet) GetDataByRank(rank int64, reverse bool) (key string, score float64, data interface{}) {
 	if rank < 0 || rank > z.zsl.length {
 		return "", 0, nil
 	}
@@ -582,5 +613,5 @@ func (z *SortedSet) GetDataByRank(rank int64, reverse bool) (key string,score fl
 	if dat == nil {
 		return "", 0, nil
 	}
-	return dat.key, dat.score, dat.attachment
+	return dat.Key, dat.Score, dat.Attachment
 }

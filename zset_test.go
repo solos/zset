@@ -16,6 +16,8 @@ func TestNew(t *testing.T) {
 	}
 	s.Set(66.0, "test1", "")
 	s.Set(77.0, "test2", "")
+	s.Set(87.0, "test3", "")
+	s.Set(89.0, "test4", "")
 
 	rank, score, extra := s.GetRank("test1", false)
 	if rank == 0 {
@@ -29,5 +31,20 @@ func TestNew(t *testing.T) {
 	} else {
 		t.Error("Key:", "test2", "Rank:", rank, "Score:", score, "Extra:", extra)
 	}
-}
+	items := s.GetRange(uint64(1), uint64(2))
+	if items[0].Score != 77.0 {
+		t.Error("Key:", "test2")
+	}
+	items = s.GetRange(uint64(1), uint64(4))
+	if items[0].Score != 77.0 {
+		t.Error("Key:", "test2")
+	}
+	if items[1].Score != 87.0 {
+		t.Error("Key:", "test3")
+	}
 
+	if items[2].Score != 89.0 {
+		t.Error("Key:", "test4")
+	}
+
+}
