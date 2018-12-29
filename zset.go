@@ -1,7 +1,6 @@
 package zset
 
 import (
-	"fmt"
 	"math/rand"
 )
 
@@ -494,7 +493,6 @@ func (zsl *skipList) zslGetElementByRank(rank uint64) *skipListNode {
 func (zsl *skipList) zslGetElements(begin uint64, end uint64) []*skipListNode {
 	result := []*skipListNode{}
 	x := zsl.zslGetElementByRank(begin)
-	fmt.Println(x)
 	if x == nil {
 		return result
 	}

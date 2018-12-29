@@ -1,7 +1,6 @@
 package zset
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -33,12 +32,10 @@ func TestNew(t *testing.T) {
 		t.Error("Key:", "test2", "Rank:", rank, "Score:", score, "Extra:", extra)
 	}
 	items := s.GetRange(uint64(1), uint64(2))
-	fmt.Println(items)
 	if items[0].Score != 77.0 {
 		t.Error("Key:", "test2")
 	}
 	items = s.GetRange(uint64(1), uint64(4))
-	fmt.Println(items)
 	if items[0].Score != 77.0 {
 		t.Error("Key:", "test2")
 	}
